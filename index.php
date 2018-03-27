@@ -36,13 +36,129 @@ $app->post('/feedUpdate','feedUpdate'); /* User Feeds  */
 $app->post('/feedDelete','feedDelete'); /* User Feeds  */
 $app->post('/getImages', 'getImages');
 $app->post('/pay','makePayment'); /* Make Payment */
+$app->post('/account','createAccount'); /*Use account number to link with created user*/
+$app->post('/transactions','getTransactions'); /*Use user_id to*/
+
 
 
 $app->run();
 
 /************************* USER LOGIN *************************************/
 /* ### User login ### */
+$con = mysqli_connect ("localhost","root","","micropay");
 
+function getTransactions(){
+    $postdata = file_get_contents("php://input");
+    if (isset($postdata)) {
+        $request = json_decode($postdata);
+        $clientID = $request->clientID;
+
+        if ($clientID != "") {
+            
+        $userData ='';
+        $sql = "SELECT * FROM transactions WHERE client_id ='$clientID'";
+        $con = mysqli_connect ("localhost","root","","micropay");
+        $result_set=mysqli_query($con,$sql);
+        $row=mysqli_fetch_array($result_set);
+        //Collective array for total database dataset
+        $json_array =array();
+        while ($row=mysqli_fetch_array($result_set)){
+                        array_push($json_array, array (
+                                  'ID' => $row['trans_ID'],
+                                  'client_Id' => $row['client_id'],
+                                  'merch_Id' => $row['client_id'],
+                                  'merch_name' => $row['merch_name'],
+                                  'client_name' => $row['client_name'],
+                                  'amount' => $row['amount'],
+                                  'date_created' => $row['date_created'],
+                                  'status' => $row['status'],
+
+                        ));
+//    $json_array[] =$row;
+                    }
+                    $json = array ("transactions"=> $json_array);
+                    echo json_encode($json, JSON_PRETTY_PRINT | JSON_NUMERIC_CHECK);
+
+                        
+    
+
+
+         
+        }
+        else{
+            echo 'no client id';
+        }
+       
+      
+    
+    }
+    else {
+        echo "Request Failed";
+    }
+    $request = \Slim\Slim::getInstance()->request();
+    $data = json_decode($request->getBody());   
+
+}
+
+function createAccount(){
+
+    $postdata = file_get_contents("php://input");
+    if (isset($postdata)) {
+        $request = json_decode($postdata);
+        $user_id = $request->user_id;
+        $account_number = $request->account;
+        if ($user_id != "") {
+           
+        }
+        else {
+            echo '{"ResponseData":{"success":"false","reason":"user_id not supplied"}}';           
+        }
+    }
+    else {
+        echo '{"ResponseData":{"success":"false","reason":"user_id not supplied"}}';  
+    }
+    $request = \Slim\Slim::getInstance()->request();
+    $data = json_decode($request->getBody());
+
+    try{
+
+        //check if entry already exists in database
+         $check ="SELECT * FROM accounts WHERE user_id='$user_id'";
+         $con = mysqli_connect ("localhost","root","","micropay");
+         $check_result = mysqli_query($con,$check);
+         $row_check=mysqli_fetch_array($check_result);
+         if(strlen($row_check['user_id'])> 0){
+             //if user already exists sent error message
+             echo $row_check['user_id'];
+        
+         }
+         else{
+             //if user doesnt exist in database create new user
+             try {
+                 $con = mysqli_connect ("localhost","root","","micropay");
+                 $sql = "INSERT INTO accounts (user_id,DateCreated,AccountNumber) VALUES ('$user_id','','$account_number')";
+                 if($result_set=mysqli_query($con,$sql)){
+                     echo '{"responseData": {"success":"true"}}';
+                 }
+                 else{
+                     echo '{"responseData": {"success":"false"}}';
+                 }
+
+
+             }
+             catch(PDOException $e) {
+                 echo '{"error":{"text":'. $e->getMessage() .'}}';
+             }
+         }
+
+
+    }
+    catch(Exception $e) {
+        echo 'Message: ' .$e->getMessage();
+      }
+
+
+}
 function makePayment(){
   
     $postdata = file_get_contents("php://input");
@@ -68,6 +184,16 @@ function makePayment(){
                 $updated_balance = $balance - $amount;
               
                 $con = mysqli_connect ("localhost","root","","micropay");
+                //update transaction records
+                $date = date();
+                $insert = "INSERT INTO transactions(client_id,merch_id,merch_name,client_name,amount,date_created,status)
+                            VALUES('$clientID','$merchant','bj','kj','$amount','$date','455')";
+                            $insert_result=mysqli_query($con,$insert);
+                            $row_insert=mysqli_fetch_array($insert_result);
+                            $new_balance =$row_insert['merch_id'];
+                            // $row_balance=mysqli_fetch_array($result_set_balance);
+                            // $new_balance =$row_balance['Balance'];
+                            
                 $update_query = "UPDATE accounts SET Balance=$updated_balance WHERE user_id=$clientID";
                 $result_set_balance=mysqli_query($con,$update_query);
                 $row_balance=mysqli_fetch_array($result_set_balance);

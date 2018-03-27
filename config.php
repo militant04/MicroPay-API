@@ -10,6 +10,9 @@ define('DB_PASSWORD', '');
 define('DB_DATABASE', 'micropay');
 define("BASE_URL", "http://localhost:81/micropay/api/");
 define("SITE_KEY", 'yourSecretKey');
+
+$con = mysqli_connect ("localhost","root","","micropay");
+            
 function getDB()
 {
 	$dbhost=DB_SERVER;
